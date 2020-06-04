@@ -1,0 +1,1573 @@
+---
+title: "IDS 572_Assignmen 4"
+author: "Sakshi Kabra"
+date: "November 17, 2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(MASS)
+library(class)
+library(dplyr)
+library(ggplot2)
+library(randomForest)
+library(tidyr)
+library(LiblineaR)
+library(ROCR)
+library(DMwR)
+library(caret)
+library(tidyverse)
+
+library(readxl)
+
+
+```
+
+```{r}
+
+MultiTrain <- read_xlsx("MultiTraining.xlsx")
+MultiTest <- read_xlsx("MultiTest.xlsx")
+
+
+```
+
+
+Pre-processing of Multi-class Data:
+
+```{r}
+
+
+#Removing Serial number variable SN and HospitalNo2, as they do not contribute to determining the response variable prediction:
+MultiTrain <- MultiTrain %>% select(-SN)
+MultiTest <- MultiTest %>% select(-SN)
+
+MultiTrain <- MultiTrain %>% select(-HospitalNo2)
+MultiTest <- MultiTest %>% select(-HospitalNo2)
+
+MultiTrain <- MultiTrain %>% select(-AdmissionDate)
+MultiTest <- MultiTest %>% select(-AdmissionDate)
+
+MultiTrain <- MultiTrain %>% select(-DischargeDate)
+MultiTest <- MultiTest %>% select(-DischargeDate)
+
+#Converting categorical variables into factor   
+
+MultiTrain$NPS_Status<- as.factor(MultiTrain$NPS_Status)
+MultiTest$NPS_Status<- as.factor(MultiTest$NPS_Status)
+
+MultiTrain$MaritalStatus <- as.factor(MultiTrain$MaritalStatus)
+MultiTest$MaritalStatus <- as.factor(MultiTest$MaritalStatus)
+
+MultiTrain$Sex <- as.factor(MultiTrain$Sex)
+MultiTest$Sex <- as.factor(MultiTest$Sex)
+
+MultiTrain$BedCategory <- as.factor(MultiTrain$BedCategory)
+MultiTest$BedCategory <- as.factor(MultiTest$BedCategory)
+
+MultiTrain$Department <- as.factor(MultiTrain$Department)
+MultiTest$Department <- as.factor(MultiTest$Department)
+
+MultiTrain$InsPayorcategory <- as.factor(MultiTrain$InsPayorcategory)
+MultiTest$InsPayorcategory <- as.factor(MultiTest$InsPayorcategory)
+
+MultiTrain$State <- as.factor(MultiTrain$State)
+MultiTest$State <- as.factor(MultiTest$State)
+
+MultiTrain$Country <- as.factor(MultiTrain$Country)
+MultiTest$Country <- as.factor(MultiTest$Country)
+
+MultiTrain$STATEZONE <- as.factor(MultiTrain$STATEZONE)
+MultiTest$STATEZONE <- as.factor(MultiTest$STATEZONE)
+
+
+```
+
+Improting Binary Data:
+
+```{r}
+
+binaryTrain <- read_xlsx("BinaryTraining.xlsx")
+binaryTest <- read_xlsx("BinaryTest.xlsx")
+#binaryTrain <- rbind(binaryTrain, binaryTest)
+
+```
+
+
+Pre-processing of Binary-class Data:
+
+```{r}
+
+
+#Removing Serial number variable SN and HospitalNo2, as they do not contribute to determining the response variable prediction:
+binaryTrain <- binaryTrain %>% select(-SN)
+binaryTest <- binaryTest %>% select(-SN)
+
+binaryTrain <- binaryTrain %>% select(-HospitalNo2)
+binaryTest <- binaryTest %>% select(-HospitalNo2)
+
+binaryTrain <- binaryTrain %>% select(-AdmissionDate)
+binaryTest <- binaryTest %>% select(-AdmissionDate)
+
+binaryTrain <- binaryTrain %>% select(-DischargeDate)
+binaryTest <- binaryTest %>% select(-DischargeDate)
+
+#Converting categorical variables into factor   
+
+binaryTrain$NPS_Status<- as.factor(binaryTrain$NPS_Status)
+binaryTest$NPS_Status<- as.factor(binaryTest$NPS_Status)
+
+binaryTrain$MaritalStatus <- as.factor(binaryTrain$MaritalStatus)
+binaryTest$MaritalStatus <- as.factor(binaryTest$MaritalStatus)
+
+binaryTrain$Sex <- as.factor(binaryTrain$Sex)
+binaryTest$Sex <- as.factor(binaryTest$Sex)
+
+binaryTrain$BedCategory <- as.factor(binaryTrain$BedCategory)
+binaryTest$BedCategory <- as.factor(binaryTest$BedCategory)
+
+binaryTrain$Department <- as.factor(binaryTrain$Department)
+binaryTest$Department <- as.factor(binaryTest$Department)
+
+binaryTrain$InsPayorcategory <- as.factor(binaryTrain$InsPayorcategory)
+binaryTest$InsPayorcategory <- as.factor(binaryTest$InsPayorcategory)
+
+binaryTrain$State <- as.factor(binaryTrain$State)
+binaryTest$State <- as.factor(binaryTest$State)
+
+binaryTrain$Country <- as.factor(binaryTrain$Country)
+binaryTest$Country <- as.factor(binaryTest$Country)
+
+binaryTrain$STATEZONE <- as.factor(binaryTrain$STATEZONE)
+binaryTest$STATEZONE <- as.factor(binaryTest$STATEZONE)
+
+
+```
+
+
+4.
+
+```{r}
+
+library(expss)
+
+
+table(MultiTrain$MaritalStatus,MultiTrain$NPS_Status) %>%
+  set_caption("MaritalStatus and NPS Status.")
+
+table(MultiTrain$Sex,MultiTrain$NPS_Status)%>%
+  set_caption("Sex and NPS Status.")
+
+table(MultiTrain$BedCategory,MultiTrain$NPS_Status)%>%
+  set_caption("BedCategory and NPS Status.")
+
+table(MultiTrain$Department,MultiTrain$NPS_Status)%>%
+  set_caption("Department and NPS Status.")
+
+table(MultiTrain$InsPayorcategory,MultiTrain$NPS_Status)%>%
+  set_caption("InsPayorcategory and NPS Status.")
+
+table(MultiTrain$State,MultiTrain$NPS_Status)%>%
+  set_caption("State and NPS Status.")
+
+table(MultiTrain$Country,MultiTrain$NPS_Status)%>%
+  set_caption("Country and NPS Status.")
+
+table(MultiTrain$STATEZONE,MultiTrain$NPS_Status)%>%
+  set_caption("STATEZONE and NPS Status.")
+
+table(MultiTrain$EM_IMMEDIATEATTENTION,MultiTrain$NPS_Status)%>%
+  set_caption("EM_IMMEDIATEATTENTION and NPS Status.")
+
+table(MultiTrain$EM_NURSING,MultiTrain$NPS_Status)%>%
+  set_caption("EM_NURSING and NPS Status.")
+
+table(MultiTrain$EM_DOCTOR,MultiTrain$NPS_Status)%>%
+  set_caption("EM_DOCTOR and NPS Status.")
+
+table(MultiTrain$EM_OVERALL,MultiTrain$NPS_Status)%>%
+  set_caption("EM_OVERALL and NPS Status.")
+
+table(MultiTrain$DOC_TREATMENTEXPLAINATION,MultiTrain$NPS_Status)%>%
+  set_caption("DOC_TREATMENTEXPLAINATION and NPS Status.")
+
+table(MultiTrain$DOC_ATTITUDE,MultiTrain$NPS_Status)%>%
+  set_caption("DOC_ATTITUDE and NPS Status.")
+
+table(MultiTrain$DOC_VISITS,MultiTrain$NPS_Status)%>%
+  set_caption("DOC_VISITS and NPS Status.")
+
+table(MultiTrain$DOC_TREATMENTEFFECTIVENESS,MultiTrain$NPS_Status)%>%
+  set_caption("DOC_TREATMENTEFFECTIVENESS and NPS Status.")
+
+table(MultiTrain$CE_ACCESSIBILITY,MultiTrain$NPS_Status)%>%
+  set_caption("CE_ACCESSIBILITY and NPS Status.")
+
+table(MultiTrain$CE_CSAT,MultiTrain$NPS_Status)%>%
+  set_caption("CE_CSAT and NPS Status.")
+
+table(MultiTrain$CE_VALUEFORMONEY,MultiTrain$NPS_Status)%>%
+  set_caption("CE_VALUEFORMONEY and NPS Status.")
+
+table(MultiTrain$CE_NPS,MultiTrain$NPS_Status)%>%
+  set_caption("CE_NPS and NPS Status.")
+
+table(MultiTrain$AD_TIME,MultiTrain$NPS_Status)%>%
+  set_caption("AD_TIME and NPS Status.")
+
+table(MultiTrain$AD_TARRIFFPACKAGESEXPLAINATION,MultiTrain$NPS_Status)%>%
+  set_caption("AD_TARRIFFPACKAGESEXPLAINATION and NPS Status.")
+
+table(MultiTrain$AD_STAFFATTITUDE,MultiTrain$NPS_Status)%>%
+  set_caption("AD_STAFFATTITUDE and NPS Status.")
+
+table(MultiTrain$INR_ROOMCLEANLINESS,MultiTrain$NPS_Status)%>%
+  set_caption("INR_ROOMCLEANLINESS and NPS Status.")
+
+table(MultiTrain$INR_ROOMPEACE,MultiTrain$NPS_Status)%>%
+  set_caption("INR_ROOMPEACE and NPS Status.")
+
+table(MultiTrain$INR_ROOMEQUIPMENT,MultiTrain$NPS_Status)%>%
+  set_caption("INR_ROOMEQUIPMENT and NPS Status.")
+
+table(MultiTrain$INR_ROOMAMBIENCE,MultiTrain$NPS_Status)%>%
+  set_caption("INR_ROOMAMBIENCE and NPS Status.")
+
+table(MultiTrain$FNB_FOODQUALITY,MultiTrain$NPS_Status)%>%
+  set_caption("FNB_FOODQUALITY and NPS Status.")
+
+table(MultiTrain$FNB_FOODDELIVERYTIME,MultiTrain$NPS_Status)%>%
+  set_caption("FNB_FOODDELIVERYTIME and NPS Status.")
+
+table(MultiTrain$FNB_DIETICIAN,MultiTrain$NPS_Status)%>%
+  set_caption("FNB_DIETICIAN and NPS Status.")
+
+table(MultiTrain$FNB_STAFFATTITUDE,MultiTrain$NPS_Status)%>%
+  set_caption("FNB_STAFFATTITUDE and NPS Status.")
+
+table(MultiTrain$AE_ATTENDEECARE,MultiTrain$NPS_Status)%>%
+  set_caption("AE_ATTENDEECARE and NPS Status.")
+
+table(MultiTrain$AE_PATIENTSTATUSINFO,MultiTrain$NPS_Status)%>%
+  set_caption("AE_PATIENTSTATUSINFO and NPS Status.")
+
+table(MultiTrain$AE_ATTENDEEFOOD,MultiTrain$NPS_Status)%>%
+  set_caption("AE_ATTENDEEFOOD and NPS Status.")
+
+table(MultiTrain$NS_CALLBELLRESPONSE,MultiTrain$NPS_Status)%>%
+  set_caption("NS_CALLBELLRESPONSE and NPS Status.")
+
+table(MultiTrain$NS_NURSESATTITUDE,MultiTrain$NPS_Status)%>%
+  set_caption("NS_NURSESATTITUDE and NPS Status.")
+
+table(MultiTrain$NS_NURSEPROACTIVENESS,MultiTrain$NPS_Status)%>%
+  set_caption("NS_NURSEPROACTIVENESS and NPS Status.")
+
+table(MultiTrain$NS_NURSEPATIENCE,MultiTrain$NPS_Status)%>%
+  set_caption("NS_NURSEPATIENCE and NPS Status.")
+
+table(MultiTrain$OVS_OVERALLSTAFFATTITUDE,MultiTrain$NPS_Status)%>%
+  set_caption("OVS_OVERALLSTAFFATTITUDE and NPS Status.")
+
+table(MultiTrain$OVS_OVERALLSTAFFPROMPTNESS,MultiTrain$NPS_Status)%>%
+  set_caption("OVS_OVERALLSTAFFPROMPTNESS and NPS Status.")
+
+table(MultiTrain$OVS_SECURITYATTITUDE,MultiTrain$NPS_Status)%>%
+  set_caption("OVS_SECURITYATTITUDE and NPS Status.")
+
+table(MultiTrain$DP_DISCHARGETIME,MultiTrain$NPS_Status)%>%
+  set_caption("DP_DISCHARGETIME and NPS Status.")
+
+table(MultiTrain$DP_DISCHARGEQUERIES,MultiTrain$NPS_Status)%>%
+  set_caption("DP_DISCHARGEQUERIES and NPS Status.")
+
+table(MultiTrain$DP_DISCHARGEPROCESS,MultiTrain$NPS_Status)%>%
+  set_caption("DP_DISCHARGEPROCESS and NPS Status.")
+
+
+
+```
+
+By looking at the tables obtained from table function, we find that variables cause quasi complete separation are: 
+MaritalStatus  
+BedCategory  
+Statte  
+Country  
+EM_Doctor  
+Doc_TreatmentExplanation  
+CE_CSAT  
+CE_NPS  
+AE_PatientStatusInfo  
+NS_NursePatience  
+OVS_OverallStaffAttitude  
+
+
+```{r}
+
+
+library(brglm2)
+library(brglm)
+
+binaryTrain$NPS_Status<- as.factor(binaryTrain$NPS_Status)
+
+glm(NPS_Status ~ .-CE_NPS, data = binaryTrain, family='binomial',
+    method = "detect_separation", linear_program = "dual")
+
+
+```
+
+The variables which are causing Quasi Complete Separation are: MaritalStatus, BedCategory, State & Country
+
+
+
+
+5.
+
+```{r}
+
+#MultiTrain$CE_ACCESSIBILITY<- factor(MultiTrain$CE_ACCESSIBILITY, order = TRUE, levels = c("1", "2", "3", "4"))
+
+#contr.poly(4)
+#contrasts(MultiTrain$CE_ACCESSIBILITY) = contr.poly(4)
+
+orth.poly <- binaryTrain
+
+
+orth.poly$Ord.ACCESSIBILITY<- factor(orth.poly$CE_ACCESSIBILITY, order = TRUE, levels = c("1", "2", "3", "4"))
+
+contr.poly(4)
+contrasts(orth.poly$Ord.ACCESSIBILITY) = contr.poly(4)
+summary(glm(NPS_Status ~ Ord.ACCESSIBILITY, orth.poly, family = "binomial"))
+
+
+orth.poly$Ord.CSAT <- factor(orth.poly$CE_CSAT, order = TRUE, levels = c("1", "2", "3", "4"))
+
+contrasts(orth.poly$Ord.CSAT) = contr.poly(4)
+summary(glm(NPS_Status ~ Ord.CSAT, orth.poly, family = "binomial"))
+
+```
+
+
+
+6. 
+
+
+```{r}
+
+LRTrain <- MultiTrain
+LRTest <- MultiTest
+
+```
+
+
+```{r}
+
+# Converting multi class to binary class problem: by converting individual classes of target variable into variables Detractors, Passive & Promoters
+
+LRTrain <- LRTrain %>% 
+  mutate(Detractors = ifelse(NPS_Status == "Detractor", "Yes", "No") )
+
+LRTrain <- LRTrain %>% select(-NPS_Status)
+
+LRTest <- LRTest %>% 
+  mutate(Detractors = ifelse(NPS_Status == "Detractor", "Yes", "No") )
+
+LRTest <- LRTest %>% select(-NPS_Status)
+
+LRTrain$Detractors <- as.factor(LRTrain$Detractors)
+LRTest$Detractors <- as.factor(LRTest$Detractors)
+
+#Removing variables found out in Quasi Complete separation from Train & Test: MaritalStatus,BedCategory,State, Country, CE_NPS
+
+remove.vars <- names(LRTrain) %in% c("MaritalStatus", "BedCategory", "State", "Country","EM_Doctor", "DOC_TREATMENTEFFECTIVENESS","DOC_TREATMENTEXPLANATION","CE_CSAT", "AE_PATIENTSTATUSINFO", "NE_NURSEPATIENCE","OVE_OVERALLSTAFFATTITUDE", "CE_NPS")
+LRTrain <- LRTrain[!remove.vars]
+LRTest <- LRTest[!remove.vars]
+
+
+#Converting survey responses into ordinal variables by normalizing
+options(digits=2)
+normalize <- function(x) {
+    return ((x - min(x)) / (max(x) - min(x)))
+}
+
+LRordinalTr <- as.data.frame(lapply(LRTrain[7:41], normalize))
+LRTrain[7:41] <- LRordinalTr[1:35]
+
+LRordinalTst <- as.data.frame(lapply(LRTest[7:41], normalize))
+LRTest[7:41] <- LRordinalTst[1:35]
+
+
+
+
+```
+
+
+
+
+```{r}
+
+# Logistic Regression on binary classification
+
+set.seed(1)
+#model_glm2 <- train(Detractors ~., data=LRTrain, method='glm',
+    #tuneGrid=expand.grid(parameter=c(0.001, 0.01, 0.1, 1,10,100, 1000)))
+#model_glm2
+
+FullGlmModel <- glm(Detractors ~. , data = LRTrain, family = "binomial")
+
+StepGlmModel <- glm(Detractors ~. , data = LRTrain, family = "binomial")%>%
+  stepAIC(trace = FALSE)
+
+summary(FullGlmModel)
+summary(StepGlmModel)
+
+
+```
+
+
+In the stepwise Regression model, the number of variables were reduced to 18.   
+The variables are: AgeYrs + Sex + Department + CE_ACCESSIBILITY +
+CE_CSAT + CE_VALUEFORMONEY + EM_NURSING + AD_TIME + AD_TARRIFFPACKAGESEXPLAINATION + INR_ROOMCLEANLINESS + FNB_FOODDELIVERYTIME + DOC_VISITS + NS_NURSEPATIENCE + OVS_SECURITYATTITUDE + DP_DISCHARGETIME + DP_DISCHARGEQUERIES + DP_DISCHARGEPROCESS + DischargeDate
+
+```{r}
+
+#Prediction accuracy of the Full logistic regression model:
+
+pred <- predict(FullGlmModel, LRTest, type = "response") 
+pred.model <- rep("No", length(pred)) 
+pred.model[pred > 0.5] <- "Yes" 
+confusionMatrix(table(pred.model, LRTest$Detractors), positive = "Yes")
+
+
+```
+
+Prediction Accuracy for Full Logistic Regression model. The accuracy comes out to be 90.1%
+
+
+
+```{r}
+
+# Prediction accuracy of the stepwise logistic regression model:
+
+pred <- predict(StepGlmModel, LRTest, type = "response") 
+pred.model <- rep("No", length(pred)) 
+pred.model[pred > 0.5] <- "Yes" 
+confusionMatrix(table(pred.model, LRTest$Detractors), positive = "Yes")
+
+
+```
+
+Prediction Accuracy for Full Logistic Regression model. The accuracy comes out to be 90.7%. This is slightly better than full model, but it has very few variables as compared to the full model. Thus, the Step wise model avoids overfitting to the training data.  
+
+
+7. With the help of ensemble methods we want to identify the Detractors and Promotors among the customers. And we also want to understand why is a customer falling in any of the 3 profiles of Promotor, Detractor or Passive. 
+
+The variable CE_NPS is removed from the predictor variables, because in a sense it is our target variable, since we determine the NPS_Status of a customer on the basis of their NPS Score, i.e., NPS Score of 0-6 is Detractor, 7-8 is Passive and 9-10 is Promotor. 
+
+Note: I tried running the models with the variable CE_NPS, and the accuracy of those model came to be 1. On checking the important variables through importance function, I found that CE_NPS has a very high Mean Decrease Gini (~2000). But the model was not much informative of other important variables responsible for the given NPS Score / Status. Hence I decided to remove CE_NPS from the predictors.
+
+
+Random Forest for Multi-class
+
+```{r}
+
+multirfTrain <- MultiTrain %>% select(-CE_NPS, -Country)
+multirfTest <- MultiTest %>% select(-CE_NPS, -Country)
+RFdata <- rbind(multirfTrain,multirfTest)
+
+rfData_cat <- dplyr::select_if(RFdata, is.factor)
+sapply(rfData_cat, function(x) length(unique(x))) 
+
+#We remove variables that have number of classes more than 53.
+
+RFdata <- RFdata %>%
+  select(-State)
+
+multirfTrain <- multirfTrain %>%
+  select(-State)
+
+multirfTest <- multirfTest %>%
+  select(-State)
+
+# Setting the number of levels of factor variables in Training & Test data as same
+
+common <- intersect(names(multirfTrain), names(multirfTest)) 
+for (p in common) { 
+  if (class(multirfTrain[[p]]) == "factor") {
+    levels(multirfTest[[p]]) <- levels(multirfTrain[[p]]) } }
+
+
+```
+
+
+Random Forest for Multi Class Classification:
+Step 1: Cross Validation for Parameter Tuning best mtry and ntree  
+
+```{r}
+
+
+library(randomForest)
+library(caret)
+
+set.seed(101) 
+MHE_rf <- list(type = "Classification", library = "randomForest", loop = NULL) 
+
+MHE_rf$parameters <- data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+
+MHE_rf$grid <- function(x, y, len = NULL, search = "grid") {}
+MHE_rf$fit <- function(x, y, wts, param, lev, last, weights, classProbs, ...) 
+  { 
+  randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...) 
+  }
+
+MHE_rf$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
+
+MHE_rf$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL) 
+  
+  predict(modelFit, newdata, type = "prob")
+
+MHE_rf$sort <- function(x) x[order(x[,1]),] 
+
+MHE_rf$levels <- function(x) x$classes 
+
+control <- trainControl(method="cv", number=3) 
+tunegrid <- expand.grid(.mtry=c(5:10), .ntree=c(100,200,500,700))
+
+set.seed(111) 
+
+multiRF <- train(NPS_Status ~.-NPS_Status, data=multirfTrain,
+                   method=MHE_rf, metric="Accuracy",
+                   tuneGrid=tunegrid, trControl=control) 
+
+plot(multiRF)
+multiRF
+
+
+
+```
+
+
+
+
+Random Forest for Multi Class: Cross Validation for Model Evaluation - I conducted a 10-fold cross validation and find out the accuracy of Random Forest for Multi-class classification problem.
+
+```{r}
+
+set.seed(111)
+library(e1071)
+library(pROC)
+
+library(randomForest)
+library(caret)
+library(AUC)
+
+k1 = 10
+
+n = floor(nrow(RFdata)/k1)
+accuracy.vect = rep(NA,k1)
+
+for (i in 1:k1) {
+
+
+  s1 = ((i-1) * n+1)
+  s2 = (i*n)
+  subset = s1:s2
+  
+  multirfcv.train = RFdata[-subset,]
+  multirfcv.test = RFdata[subset,]
+
+  tuned.RandForest <- randomForest(NPS_Status~.-NPS_Status, data = multirfcv.train, mtry = 9, ntree = 500 ) 
+
+  tuned.RF.pred <- predict(tuned.RandForest, 
+                           newdata = multirfcv.test, type = "class")
+  
+  accuracy.vect[i] <- (confusionMatrix(tuned.RF.pred, multirfcv.test$NPS_Status))$overall[1]
+
+ print(paste("Accuracy for fold", i, ":", accuracy.vect[i]))
+  
+    }
+
+print(paste(" Average Accuracy for multiclass Random Forest :", mean(accuracy.vect)))
+
+
+```
+
+Retrain the model with best parameters obtained from Cross Validation and checking the performance measure - Accuracy on the test data.
+
+```{r}
+
+set.seed(123)
+
+#Retraining the model with best values of mtry and ntree
+
+RF.tuned <- randomForest(NPS_Status ~. -NPS_Status, 
+                      data=multirfTrain, 
+                      importance = TRUE, 
+                      mtry = 9,
+                      ntree = 500)
+print(RF.tuned)
+plot(RF.tuned)
+
+
+# Making final prediction on test data
+
+RFtest.pred <- predict(RF.tuned, multirfTest, type = "prob")
+
+confusionMatrix(predict(RF.tuned, newdata= multirfTest, type = "class"),
+                multirfTest$NPS_Status)
+
+multirfImportant <- importance(RF.tuned, type = 2)
+
+multiRFImportance <- data.frame(Variables = row.names(multirfImportant),
+            Importance = round(multirfImportant[ ,'MeanDecreaseGini'],2))
+
+multiRFImportance <- multiRFImportance[order((multiRFImportance$Importance),decreasing = TRUE), ]
+
+head(multiRFImportance, 20)
+
+```
+
+Final Results for Random Forest for Multi Class Classification: Random Forest gives an accuracy of 71.2% on training data and 67.6% on test data. 
+
+
+
+AdaBoost for Multi Class
+
+```{r}
+
+multiAdaTrain <- MultiTrain %>% select(-CE_NPS)
+multiAdaTest <- MultiTest %>% select(-CE_NPS)
+
+multiAdaData <- rbind(multiAdaTrain,multiAdaTest)
+
+```
+
+
+
+```{r}
+
+# Creating dummy variables for categorical variables
+
+library(caret)
+multiAda_nums <- dplyr::select_if(multiAdaData, is.numeric) 
+multiAda_cat <- dplyr::select_if(multiAdaData, is.factor)
+
+var_onehot <- c('MaritalStatus','Sex','BedCategory','Department', "InsPayorcategory", "State", "Country", "STATEZONE")
+
+# One Hot Encoding 
+
+dummys <- dummyVars(" ~ .", data = multiAda_cat[,var_onehot]) 
+
+dummy_cats <- data.frame(predict(dummys, newdata = multiAda_cat[,var_onehot]))
+
+ new.multiAdaData <- cbind(multiAda_nums,dummy_cats,multiAda_cat$NPS_Status)
+
+names(new.multiAdaData)[names(new.multiAdaData) =="multiAda_cat$NPS_Status"] <- "NPS_Status"
+
+multiAdaTrain <- new.multiAdaData[1:4989,]
+
+multiAdaTest <- new.multiAdaData[4990:5353,]
+
+# Setting the number of levels of factor variables in Training & Test data as same
+
+common <- intersect(names(multiAdaTrain), names(multiAdaTest)) 
+for (p in common) { 
+  if (class(multiAdaTrain[[p]]) == "factor") {
+    levels(multiAdaTest[[p]]) <- levels(multiAdaTrain[[p]]) } }
+
+
+
+```
+
+
+Ada Boost for Multi Class Classification: Cross Validation for Parameter Tuning - Cross validation is conducted to find the best value of mfinal (no. of iterations), Complexity parameter (cp) and maxdepth.
+
+
+```{r}
+
+set.seed(111)
+library("adabag")
+
+# Find the best model with the best mfinal, cp and maxdepth, via cross-validations 
+
+multi.best.mfinal <- NA
+multi.best.cp <- NA
+multi.best.maxdepth <- NA
+
+highest.accuracy <- 0
+for (m.final in c(10,20)) {
+  for (comp.p in c(0.005,0.001,0.01)) {
+    for (maxdepth in c(10, 20,30)){
+    multiAdaBoost <- boosting(NPS_Status ~ ., data = multiAdaTrain,
+                              mfinal = m.final, 
+                              control = rpart.control(maxdepth =maxdepth,
+                                                      cp=comp.p))
+   
+    multipred.best <- as.factor((predict.boosting(multiAdaBoost,multiAdaTrain))$class)
+    
+    #levels(multipred.best)
+    #levels(multiAdaTrain$NPS_Status)
+    
+    fold.accuracy <- (confusionMatrix(multipred.best, multiAdaTrain$NPS_Status)$overall)[1]
+    
+    cat("Results for mfinal=",m.final," : ", "Complexity parameter = ",comp.p,":", "and maxdepth = ",maxdepth,":", "Accuracy = ",fold.accuracy,"\n",sep="")
+    
+    if(fold.accuracy > highest.accuracy){
+      highest.accuracy <- fold.accuracy
+      multi.best.mfinal <- m.final 
+      multi.best.cp <- comp.p 
+      multi.best.maxdepth <- maxdepth
+      
+    }
+  }
+ }
+}  
+
+
+cat("For Multi-class Classification:", "\n")
+cat("Best mfinal (number of iterations) is:",m.final,"\n") 
+cat("Best complexity parameter is:",comp.p,"\n")
+cat("Best maxdepth is:",maxdepth,"\n") 
+cat("Best accuracy is:",highest.accuracy,"\n") 
+
+
+
+
+
+```
+
+
+
+Retraining the model with best parameters obtained from cross validation and generating the confusion matrix for training and test data predictions.
+
+```{r}
+set.seed(111)
+  library("adabag")
+
+bestmulti.adaboost <- boosting(NPS_Status ~ ., data = multiAdaTrain, mfinal = 20, control = rpart.control(maxdepth = 30, cp=0.005 ))
+
+multi.predboosting.tr <- as.factor(predict.boosting(bestmulti.adaboost, 
+                                      newdata = multiAdaTrain)$class)
+confusionMatrix(multi.predboosting.tr, multiAdaTrain$NPS_Status)
+
+importanceplot(bestmulti.adaboost)
+MultiadaImportant <- bestmulti.adaboost$importance
+
+sort(MultiadaImportant, decreasing = TRUE)
+
+```
+Most important variables according to Ada-boost for multi class classification are:  
+                            CE_CSAT 
+                        32.96840130 
+                   CE_VALUEFORMONEY 
+                        27.37526737 
+                DP_DISCHARGEQUERIES 
+                         3.43377511 
+                BedCategory.GENERAL 
+                         3.34818452 
+                   CE_ACCESSIBILITY 
+                         2.93426178 
+                             AgeYrs 
+                         2.78359855 
+               FNB_FOODDELIVERYTIME 
+                         2.17330957 
+                    AE_ATTENDEEFOOD 
+                         2.03898577 
+                    FNB_FOODQUALITY 
+                         1.92802971 
+     AD_TARRIFFPACKAGESEXPLAINATION 
+                         1.74767948 
+                   INR_ROOMAMBIENCE 
+                         1.73920352 
+
+
+```{r}
+
+multi.predboosting <- as.factor(predict.boosting(bestmulti.adaboost, 
+                                      newdata = multiAdaTest)$class)
+#length(multi.predboosting)
+#length(multiAdaTest$NPS_Status)
+
+confusionMatrix(multi.predboosting, multiAdaTest$NPS_Status)
+
+
+```
+
+
+Random Forest for Binary classification:
+
+```{r}
+
+binaryrf.train <- binaryTrain %>% select(-CE_NPS)
+
+binaryrf.test <- binaryTest %>% select(-CE_NPS)
+
+binaryrf.data <- rbind(binaryrf.train,binaryrf.test)
+
+
+
+#We remove variables that have number of classes more than 53.
+
+binaryrf.data <- binaryrf.data %>%
+  select(-State)
+
+binaryrf.train <- binaryrf.train %>%
+  select(-State)
+
+binaryrf.test <- binaryrf.test %>%
+  select(-State)
+
+# Setting the number of levels of factor variables in Training & Test data as same
+
+common <- intersect(names(binaryrf.train), names(binaryrf.test)) 
+for (p in common) { 
+  if (class(binaryrf.train[[p]]) == "factor") {
+    levels(binaryrf.test[[p]]) <- levels(binaryrf.train[[p]]) } }
+
+
+
+
+```
+
+
+```{r}
+
+#Tuning Parameters for Binary class Random Forest
+
+set.seed(111) 
+
+BinaryRF <- train(NPS_Status ~.-NPS_Status, data=binaryrf.train,
+                   method=MHE_rf, metric="Accuracy",
+                   tuneGrid=tunegrid, trControl=control) 
+
+plot(BinaryRF)
+BinaryRF
+
+
+```
+
+
+
+```{r}
+
+set.seed(111)
+
+k2 = 10
+
+n = floor(nrow(binaryrf.data)/k2)
+accuracy.vect.bin = rep(NA,k2)
+
+for (i in 1:k2) {
+
+
+  s3 = ((i-1) * n+1)
+  s4 = (i*n)
+  subset = s3:s4
+  
+  binrfcv.train = binaryrf.data[-subset,]
+  binrfcv.test = binaryrf.data[subset,]
+
+  Bin.tuned.RandForest <- randomForest(NPS_Status~.-NPS_Status, data = binrfcv.train, mtry = 9, ntree = 200 ) 
+
+  binRF.pred <- predict(Bin.tuned.RandForest, 
+                           newdata = binrfcv.test, type = "class")
+  
+  accuracy.vect.bin[i] <- (confusionMatrix(binRF.pred, binrfcv.test$NPS_Status))$overall[1]
+
+ print(paste("Accuracy for fold", i, ":", accuracy.vect.bin[i]))
+  
+    }
+
+print(paste(" Average Accuracy for binary Random Forest :", mean(accuracy.vect.bin)))
+
+
+
+```
+
+
+Retrain the model with best parameters and checking the performance measure - Accuracy on the test data.
+
+```{r}
+
+ 
+set.seed(123)
+
+#Retraining the model with best values of mtry and ntree
+
+bin.RF.tuned <- randomForest(NPS_Status ~. -NPS_Status, 
+                      data=binaryrf.train, 
+                      importance = TRUE, 
+                      mtry = 9,
+                      ntree = 200)
+print(bin.RF.tuned)
+plot(bin.RF.tuned)
+
+
+# Making final prediction on test data
+
+RFtest.pred <- predict(bin.RF.tuned, binaryrf.test, type = "prob")
+
+confusionMatrix(predict(bin.RF.tuned, newdata= binaryrf.test,
+                        type = "class"),
+                binaryrf.test$NPS_Status)
+
+BinrfImportant <- importance(bin.RF.tuned, type = 2)
+
+BinRFImportance <- data.frame(Variables = row.names(BinrfImportant),
+            Importance = round(BinrfImportant[ ,'MeanDecreaseGini'],2))
+
+BinRFImportance <- BinRFImportance[order((BinRFImportance$Importance),decreasing = TRUE), ]
+
+head(BinRFImportance, 20)
+
+
+```
+
+
+
+Ada Boost for Binary: 
+
+```{r}
+
+binAdaTrain <- binaryTrain %>% select(-CE_NPS)
+
+binAdaTest <- binaryTest %>% select(-CE_NPS)
+
+binAdaData <- rbind(binAdaTrain,binAdaTest)
+
+
+
+```
+
+
+```{r}
+
+
+library(caret)
+binAda_nums <- dplyr::select_if(binAdaData, is.numeric) 
+binAda_cat <- dplyr::select_if(binAdaData, is.factor)
+
+# Creating dummy variables for categorical variables
+
+var_onehot <- c('MaritalStatus','Sex','BedCategory','Department', "InsPayorcategory", "State", "Country", "STATEZONE")
+
+# One Hot Encoding 
+
+dummy <- dummyVars(" ~ .", data = binAda_cat[,var_onehot]) 
+
+dummy_cat <- data.frame(predict(dummy, newdata = binAda_cat[,var_onehot]))
+
+ new.binAdaData <- cbind(binAda_nums,dummy_cat,binAda_cat$NPS_Status)
+
+names(new.binAdaData)[names(new.binAdaData) =="binAda_cat$NPS_Status"] <- "NPS_Status"
+
+binAdaTrain <- new.binAdaData[1:4989,]
+
+binAdaTest <- new.binAdaData[4990:5353,]
+
+# Setting the number of levels of factor variables in Training & Test data as same
+
+common <- intersect(names(binAdaTrain), names(binAdaTest)) 
+for (p in common) { 
+  if (class(binAdaTrain[[p]]) == "factor") {
+    levels(binAdaTest[[p]]) <- levels(binAdaTrain[[p]]) } }
+
+
+```
+
+
+
+Ada Boost for Binary Class Classification: Cross Validation for Parameter Tuning - Cross validation is conducted to find the best value of mfinal (no. of iterations), Complexity parameter (cp) and maxdepth.
+
+```{r}
+# Find the best model with the best mfinal, cp and maxdepth, via cross-validations 
+set.seed(111)
+bin.best.mfinal <- NA
+bin.best.cp <- NA
+bin.best.maxdepth <- NA
+
+highestbin.accuracy <- 0
+for (m.final1 in c(10,20)) {
+  for (comp.p1 in c(0.005,0.001,0.01)) {
+    for (maxdepth1 in c(10, 20,30)){
+    binaryAdaBoost <- boosting(NPS_Status ~ ., data = binAdaTrain,
+                          mfinal = m.final1, 
+                          control = rpart.control(maxdepth =maxdepth1,
+                                                      cp=comp.p1))
+   
+    binpred.best <- as.factor((predict.boosting(binaryAdaBoost,binAdaTrain))$class)
+    
+    #levels(multipred.best)
+    #levels(multiAdaTrain$NPS_Status)
+    
+    binfold.accuracy <- (confusionMatrix(binpred.best, binAdaTrain$NPS_Status)$overall)[1]
+    
+    cat("Results in the Binary classification for mfinal=",m.final1," : ", "Complexity parameter = ",comp.p1,":", "and maxdepth = ",maxdepth1,":", "Accuracy = ",binfold.accuracy,"\n",sep="")
+    
+    if(binfold.accuracy > highest.accuracy){
+      highestbin.accuracy <- binfold.accuracy
+      multi.best.mfinal <- m.final1 
+      multi.best.cp <- comp.p1 
+      multi.best.maxdepth <- maxdepth1
+      
+    }
+  }
+ }
+}  
+
+cat("For Binary Classification:", "\n")
+cat("Best mfinal (number of iterations) is:",m.final,"\n") 
+cat("Best complexity parameter is:",comp.p,"\n")
+cat("Best maxdepth is:",maxdepth,"\n") 
+cat("Best accuracy is:",highestbin.accuracy,"\n") 
+
+
+
+
+```
+
+
+
+Retraining the model with best parameters obtained from cross validation and generating the confusion matrix for training and test data predictions.
+
+```{r}
+set.seed(111)
+  library("adabag")
+
+bestbinary.adaboost <- boosting(NPS_Status ~ ., data = binAdaTrain, mfinal = 20, control = rpart.control(maxdepth = 30, cp=0.005 ))
+
+binary.predboosting.tr <- as.factor(predict.boosting(bestbinary.adaboost,
+                                      newdata = binAdaTrain)$class)
+#length(multi.predboosting)
+#length(multiAdaTest$NPS_Status)
+
+confusionMatrix(binary.predboosting.tr, binAdaTrain$NPS_Status)
+
+importanceplot(bestbinary.adaboost)
+BinadaImportant <- bestbinary.adaboost$importance
+
+sort(BinadaImportant, decreasing = TRUE)
+
+
+
+```
+
+
+
+```{r}
+
+binary.predboosting <- as.factor(predict.boosting(bestbinary.adaboost, 
+                                      newdata = binAdaTest)$class)
+#length(multi.predboosting)
+#length(multiAdaTest$NPS_Status)
+
+confusionMatrix(binary.predboosting, binAdaTest$NPS_Status)
+
+
+```
+
+
+
+
+
+
+
+8. Balancing the train data using SMOTE function from DMwR library. SMOTE uses K-nearest neighbour method to generate new samples, as to increase the minority class rows and decrease the majority class rows in the data.
+
+```{r}
+
+
+Samplingtrain <- binaryTrain 
+Samplingtest <- binaryTest
+
+Samplingtrain %>%
+  group_by(NPS_Status) %>%
+  summarise(count = n())
+
+library(DMwR) 
+
+## Smote : Synthetic Minority Oversampling Technique To Handle Class Imbalance In Binary Classification 
+
+SMOTE.balanced <- SMOTE(NPS_Status ~., as.data.frame(Samplingtrain), 
+                       perc.under = 170,
+                       perc.over = 180 , k = 5) 
+as.data.frame(table(SMOTE.balanced$NPS_Status))
+
+
+```
+
+Under Sampling: 
+
+```{r}
+
+library(ROSE)
+
+underSample <- ovun.sample(NPS_Status ~., as.data.frame(Samplingtrain),
+                           method = "under", N=4000)$data
+underSample %>% group_by(NPS_Status) %>% count()
+
+
+```
+
+Over Sampling: 
+
+```{r}
+
+library(ROSE)
+
+overSample <- ovun.sample(NPS_Status ~., as.data.frame(Samplingtrain),
+                           method = "over", N=6000)$data
+overSample %>% group_by(NPS_Status) %>% count()
+
+
+```
+
+
+
+Random Forest with SMOTE data: 
+
+```{r}
+
+rftrain.smote <- SMOTE.balanced %>% select(-CE_NPS)
+rftest.smote <- binaryTest %>% select(-CE_NPS)
+
+rf.smote <- rbind(rftrain.smote,rftest.smote)
+
+rf.smote <- rf.smote %>% select(-State)
+
+#rfsmote_cat <- dplyr::select_if(rf.smote, is.factor)
+#sapply(rfsmote_cat, function(x) length(unique(x))) 
+
+
+
+```
+
+
+```{r}
+
+set.seed(111)
+k2 = 10
+n = floor(nrow(rf.smote)/k2)
+accuracy.vect.smote = rep(NA,k2)
+
+for (i in 1:k2) {
+
+  s5 = ((i-1) * n+1)
+  s6 = (i*n)
+  subset = s5:s6
+  
+  smoterfcv.train = rf.smote[-subset,]
+  smoterfcv.test = rf.smote[subset,]
+
+  smote.tuned.RandForest <- randomForest(NPS_Status~.-NPS_Status, data = smoterfcv.train, mtry = 9, ntree = 200 ) 
+
+  smoteRF.pred <- predict(smote.tuned.RandForest, 
+                           newdata = smoterfcv.test, type = "class")
+  
+  accuracy.vect.smote[i] <- (confusionMatrix(smoteRF.pred, smoterfcv.test$NPS_Status))$overall[1]
+
+ print(paste("Accuracy for fold", i, ":", accuracy.vect.smote[i]))
+  
+    }
+
+print(paste(" Average Accuracy for Smote Random Forest :", mean(accuracy.vect.smote)))
+
+
+
+
+
+
+```
+
+
+```{r}
+
+
+smoterfImportant <- importance(smote.tuned.RandForest, type = 2)
+
+smoteRFImportance <- data.frame(Variables = row.names(smoterfImportant),
+            Importance = round(smoterfImportant[ ,'MeanDecreaseGini'],2))
+
+smoteRFImportance <- smoteRFImportance[order((smoteRFImportance$Importance),decreasing = TRUE), ]
+
+head(smoteRFImportance, 20)
+
+```
+
+
+Random Forest with Under Sampled data: 
+
+```{r}
+
+rftrain.us <- underSample %>% select(-CE_NPS)
+rftest.us <- binaryTest %>% select(-CE_NPS)
+
+rf.us <- rbind(rftrain.us,rftest.us)
+
+rf.us <- rf.us %>% select(-State)
+
+#rfsmote_cat <- dplyr::select_if(rf.smote, is.factor)
+#sapply(rfsmote_cat, function(x) length(unique(x))) 
+
+
+
+```
+
+
+
+```{r}
+
+set.seed(111)
+k2 = 10
+
+n = floor(nrow(rf.us)/k2)
+accuracy.vect.us = rep(NA,k2)
+
+for (i in 1:k2) {
+
+
+  s7 = ((i-1) * n+1)
+  s8 = (i*n)
+  subset = s7:s8
+  
+  USrfcv.train = rf.us[-subset,]
+  USrfcv.test = rf.us[subset,]
+
+  US.tuned.RandForest <- randomForest(NPS_Status~.-NPS_Status, data = USrfcv.train, mtry = 9, ntree = 200 ) 
+
+  usRF.pred <- predict(US.tuned.RandForest, 
+                           newdata = USrfcv.test, type = "class")
+  
+  accuracy.vect.us[i] <- (confusionMatrix(usRF.pred, USrfcv.test$NPS_Status))$overall[1]
+
+ print(paste("Accuracy for fold", i, ":", accuracy.vect.us[i]))
+  
+    }
+
+print(paste(" Average Accuracy for Under Sampled Random Forest :", mean(accuracy.vect.us)))
+
+
+```
+
+
+```{r}
+
+usrfImportant <- importance(US.tuned.RandForest, type = 2)
+
+usRFImportance <- data.frame(Variables = row.names(usrfImportant),
+            Importance = round(usrfImportant[ ,'MeanDecreaseGini'],2))
+
+usRFImportance <- usRFImportance[order((usRFImportance$Importance),decreasing = TRUE), ]
+
+head(usRFImportance, 20)
+
+
+```
+
+
+
+Random Forest with Over Sampled data: 
+
+```{r}
+
+rftrain.os <- overSample %>% select(-CE_NPS)
+rftest.os <- binaryTest %>% select(-CE_NPS)
+
+rf.os <- rbind(rftrain.os,rftest.os)
+
+rf.os <- rf.os %>% select(-State)
+
+#rfsmote_cat <- dplyr::select_if(rf.smote, is.factor)
+#sapply(rfsmote_cat, function(x) length(unique(x))) 
+
+
+```
+
+
+
+```{r}
+
+set.seed(111)
+k2 = 10
+n = floor(nrow(rf.os)/k2)
+accuracy.vect.os = rep(NA,k2)
+
+for (i in 1:k2) {
+
+  s9 = ((i-1) * n+1)
+  s10 = (i*n)
+  subset = s9:s10
+  
+  OSrfcv.train = rf.os[-subset,]
+  OSrfcv.test = rf.os[subset,]
+
+  OS.tuned.RandForest <- randomForest(NPS_Status~.-NPS_Status, data = OSrfcv.train, mtry = 9, ntree = 500 ) 
+
+  osRF.pred <- predict(OS.tuned.RandForest, 
+                           newdata = OSrfcv.test, type = "class")
+  
+  accuracy.vect.os[i] <- (confusionMatrix(osRF.pred, OSrfcv.test$NPS_Status))$overall[1]
+
+ print(paste("Accuracy for fold", i, ":", accuracy.vect.os[i]))
+  
+    }
+
+print(paste(" Average Accuracy for Over Sampled Random Forest :", mean(accuracy.vect.os)))
+
+
+```
+
+
+```{r}
+
+osrfImportant <- importance(OS.tuned.RandForest, type = 2)
+
+osRFImportance <- data.frame(Variables = row.names(osrfImportant),
+            Importance = round(osrfImportant[ ,'MeanDecreaseGini'],2))
+
+osRFImportance <- osRFImportance[order((osRFImportance$Importance),decreasing = TRUE), ]
+
+head(osRFImportance, 20)
+
+```
+
+
+Ada Boost with SMOTE data: 
+
+```{r}
+
+Adatrain.smote <- SMOTE.balanced %>% select(-CE_NPS)
+Adatest.smote <- binaryTest %>% select(-CE_NPS)
+
+Ada.smote <- rbind(Adatrain.smote,Adatest.smote)
+
+#Converting categorical variables into dummy numerica variables
+
+Ada.smote_nums <- dplyr::select_if(Ada.smote, is.numeric) 
+Ada.smote_cat <- dplyr::select_if(Ada.smote, is.factor)
+
+var_onehot <- c('MaritalStatus','Sex','BedCategory','Department', "InsPayorcategory", "State", "Country", "STATEZONE")
+
+# One Hot Encoding 
+
+dummys1 <- dummyVars(" ~ .", data = Ada.smote_cat[,var_onehot]) 
+
+dummy_cats1 <- data.frame(predict(dummys1, newdata = Ada.smote_cat[,var_onehot]))
+
+ new.Ada.smote <- cbind(Ada.smote_nums,dummy_cats1,Ada.smote_cat$NPS_Status)
+
+names(new.Ada.smote)[names(new.Ada.smote) =="Ada.smote_cat$NPS_Status"] <- "NPS_Status"
+
+Adatrain.smote <- new.Ada.smote[1:6841,]
+
+Adatest.smote <- new.Ada.smote[6842:7205,]
+
+Ada.smote <- rbind(Adatrain.smote,Adatest.smote)
+
+```
+
+
+```{r}
+set.seed(111)
+library(adabag)
+
+k3 = 10
+
+x = floor(nrow(Ada.smote)/k3)
+accuracy.Ada.smote = rep(NA,k3)
+
+for (i in 1:k3) {
+
+  p1 = ((i-1) * x+1)
+  p2 = (i*x)
+  subset = p1:p2
+  
+  smoteAdacv.train = Ada.smote[-subset,]
+  smoteAdacv.test = Ada.smote[subset,]
+
+  
+ smote.tuned.Ada <- boosting(NPS_Status ~ ., data = smoteAdacv.train, mfinal = 20, control = rpart.control(maxdepth = 30, cp=0.005 ))
+
+smote.predboosting <- as.factor(predict.boosting(smote.tuned.Ada,
+                                      newdata = smoteAdacv.test)$class)
+#length(multi.predboosting)
+#length(multiAdaTest$NPS_Status)
+
+accuracy.Ada.smote[i] <- (confusionMatrix(smote.predboosting, smoteAdacv.test$NPS_Status))$overall[1]
+  
+
+ print(paste("Accuracy for fold", i, ":", accuracy.Ada.smote[i]))
+  
+    }
+
+print(paste(" Average Accuracy for SMOTE Sampled Ada Boost Model :", mean(accuracy.Ada.smote)))
+
+
+importanceplot(smote.tuned.Ada)
+smoteadaImportant <- smote.tuned.Ada$importance
+
+head(sort(smoteadaImportant, decreasing = TRUE),20)
+
+```
+
+
+Ada Boost with under sampled data: 
+
+```{r}
+
+Adatrain.us <- underSample %>% select(-CE_NPS)
+Adatest.us <- binaryTest %>% select(-CE_NPS)
+
+Ada.us <- rbind(Adatrain.us,Adatest.us)
+
+#Converting categorical variables into dummy numerica variables
+
+Ada.us_nums <- dplyr::select_if(Ada.us, is.numeric) 
+Ada.us_cat <- dplyr::select_if(Ada.us, is.factor)
+
+var_onehot <- c('MaritalStatus','Sex','BedCategory','Department', "InsPayorcategory", "State", "Country", "STATEZONE")
+
+# One Hot Encoding 
+
+dummys2 <- dummyVars(" ~ .", data = Ada.us_cat[,var_onehot]) 
+
+dummy_cats2 <- data.frame(predict(dummys2, newdata = Ada.us_cat[,var_onehot]))
+
+ new.Ada.us <- cbind(Ada.us_nums,dummy_cats2,Ada.us_cat$NPS_Status)
+
+names(new.Ada.us)[names(new.Ada.us) =="Ada.us_cat$NPS_Status"] <- "NPS_Status"
+
+Adatrain.us <- new.Ada.us[1:4000,]
+
+Adatest.us <- new.Ada.us[4001:4364,]
+
+Ada.us <- rbind(Adatrain.us,Adatest.us)
+
+```
+
+
+```{r}
+
+library(adabag)
+
+k3 = 10
+
+y = floor(nrow(Ada.us)/k3)
+accuracy.Ada.us = rep(NA,k3)
+
+for (i in 1:k3) {
+
+
+
+  p3 = ((i-1) * y+1)
+  p4 = (i*y)
+  subset = p3:p4
+  
+  USAdacv.train = Ada.us[-subset,]
+  USAdacv.test = Ada.us[subset,]
+
+  
+ US.tuned.Ada <- boosting(NPS_Status ~ ., data = USAdacv.train, mfinal = 20, control = rpart.control(maxdepth = 30, cp=0.005 ))
+
+US.predboosting <- as.factor(predict.boosting(US.tuned.Ada,
+                                      newdata = USAdacv.test)$class)
+#length(multi.predboosting)
+#length(multiAdaTest$NPS_Status)
+
+accuracy.Ada.us[i] <- (confusionMatrix(US.predboosting, USAdacv.test$NPS_Status))$overall[1]
+  
+
+ print(paste("Accuracy for fold", i, ":", accuracy.Ada.us[i]))
+  
+    }
+
+print(paste(" Average Accuracy for Under Sampled Ada Boosted model :", mean(accuracy.Ada.us)))
+
+importanceplot(US.tuned.Ada)
+usadaImportant <- US.tuned.Ada$importance
+
+head(sort(usadaImportant, decreasing = TRUE),20)
+
+```
+
+
+
+Ada Boost with Over Sample data: 
+
+```{r}
+
+Adatrain.os <- overSample %>% select(-CE_NPS)
+Adatest.os <- binaryTest %>% select(-CE_NPS)
+
+Ada.os <- rbind(Adatrain.os,Adatest.os)
+
+#Converting categorical variables into dummy numerica variables
+
+Ada.os_nums <- dplyr::select_if(Ada.os, is.numeric) 
+Ada.os_cat <- dplyr::select_if(Ada.os, is.factor)
+
+var_onehot <- c('MaritalStatus','Sex','BedCategory','Department', "InsPayorcategory", "State", "Country", "STATEZONE")
+
+# One Hot Encoding 
+
+dummys3 <- dummyVars(" ~ .", data = Ada.smote_cat[,var_onehot]) 
+
+dummy_cats3 <- data.frame(predict(dummys3, newdata = Ada.os_cat[,var_onehot]))
+
+ new.os.smote <- cbind(Ada.os_nums,dummy_cats3,Ada.os_cat$NPS_Status)
+
+names(new.os.smote)[names(new.os.smote) =="Ada.os_cat$NPS_Status"] <- "NPS_Status"
+
+Adatrain.os <- new.os.smote[1:6000,]
+
+Adatest.os <- new.os.smote[6001:6364,]
+
+Ada.os <- rbind(Adatrain.os,Adatest.os)
+
+```
+
+
+```{r}
+
+library(adabag)
+
+k3 = 10
+
+z = floor(nrow(Ada.os)/k3)
+accuracy.Ada.os = rep(NA,k3)
+
+for (i in 1:k3) {
+
+  p5 = ((i-1) * z+1)
+  p6 = (i*z)
+  subset = p5:p6
+  
+  OSAdacv.train = Ada.os[-subset,]
+  OSAdacv.test = Ada.os[subset,]
+
+  
+ OS.tuned.Ada <- boosting(NPS_Status ~ ., data = OSAdacv.train, mfinal = 20, control = rpart.control(maxdepth = 30, cp=0.005 ))
+
+OS.predboosting <- as.factor(predict.boosting(OS.tuned.Ada,
+                                      newdata = OSAdacv.test)$class)
+#levels(OS.predboosting)
+#length(multiAdaTest$NPS_Status)
+
+accuracy.Ada.os[i] <- (confusionMatrix(OS.predboosting, OSAdacv.test$NPS_Status)$overall)[1]
+
+ print(paste("Accuracy for fold", i, ":", accuracy.Ada.os[i]))
+  
+    }
+
+print(paste(" Average Accuracy for Over Sampled Ada Boost Model :", mean(accuracy.Ada.os)))
+
+importanceplot(OS.tuned.Ada)
+osadaImportant <- OS.tuned.Ada$importance
+
+head(sort(osadaImportant, decreasing = TRUE),20)
+
+```
